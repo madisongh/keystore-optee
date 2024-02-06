@@ -186,9 +186,15 @@ new_passphrase (FILE *outf, bool force)
 
 	n = run_keystore_cmd(KEYSTORE_CMD_STORE, KEYSTORE_ID_DMCPP, flags,
 			     buf, sizeof(buf));
-	if (n < 0)
-		return 1;
-
+	if (n < 0) {
+		fprintf(stderr, "TA returned error storing passphrase, trying again\n");
+		n = run_keystore_cmd(KEYSTORE_CMD_STORE, KEYSTORE_ID_DMCPP, flags,
+				     buf, sizeof(buf));
+		if (n < 0) {
+			fprintf(stderr, "TA returned error on second try\n");
+			return 1;
+		}
+	}
 	n = run_keystore_cmd(KEYSTORE_CMD_RETRIEVE, KEYSTORE_ID_DMCPP, 0,
 			     readback, sizeof(readback));
 	if (n < 0) {

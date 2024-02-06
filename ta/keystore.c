@@ -100,6 +100,7 @@ store_passphrase (struct session_context *ctx, uint32_t param_types, TEE_Param p
 	TEE_Result result;
 	uint32_t objectflags;
 	int objnamelen;
+	int tries_remaining;
 
 	if (param_types != TEE_PARAM_TYPES(TEE_PARAM_TYPE_VALUE_INPUT,
 					   TEE_PARAM_TYPE_VALUE_INPUT,
@@ -121,12 +122,17 @@ store_passphrase (struct session_context *ctx, uint32_t param_types, TEE_Param p
 	objectflags = TEE_DATA_FLAG_ACCESS_READ | TEE_DATA_FLAG_ACCESS_WRITE | TEE_DATA_FLAG_ACCESS_WRITE_META;
 	if ((params[1].value.a & KEYSTORE_STORE_OVERWRITE) != 0)
 		objectflags |= TEE_DATA_FLAG_OVERWRITE;
-	result = TEE_CreatePersistentObject(TEE_STORAGE_PRIVATE_RPMB,
-					    ctx->objname, (uint32_t) objnamelen,
-					    objectflags,
-					    TEE_HANDLE_NULL,
-					    ctx->ppbuf, params[2].memref.size,
-					    &ppobj);
+	for (tries_remaining = 2; tries_remaining > 0; tries_remaining -= 1) {
+		result = TEE_CreatePersistentObject(TEE_STORAGE_PRIVATE_RPMB,
+						    ctx->objname, (uint32_t) objnamelen,
+						    objectflags,
+						    TEE_HANDLE_NULL,
+						    ctx->ppbuf, params[2].memref.size,
+						    &ppobj);
+		if (result == TEE_SUCCESS)
+			break;
+		EMSG("TEE_CreatePersistentOjbect returned 0x%x, tries remaining: %d", result, tries_remaining - 1);
+	}
 	if (result == TEE_SUCCESS) {
 		TEE_CloseObject(ppobj);
 		disabled_ids &= ~(1U << params[0].value.a);
