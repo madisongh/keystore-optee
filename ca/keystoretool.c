@@ -84,6 +84,42 @@ print_usage (void)
 } /* print_usage */
 
 /*
+ * initialize_secure_storage
+ *
+ * Rockchip-specific call to ensure that the secure storage TA is set up for
+ * using the eMMC RPMB.
+ */
+static ssize_t
+initialize_secure_storage (void)
+{
+	TEEC_Result result;
+	TEEC_Context ctx;
+	TEEC_Session sess;
+	TEEC_Operation oper;
+	TEEC_UUID rktemp_uuid = {
+		0x1b484ea5, 0x698b, 0x4142,
+		{ 0x82, 0xb8, 0x3a, 0xcf, 0x16, 0xe9, 0x9e, 0x2a }
+	};
+	uint32_t origin;
+
+	memset(&oper, 0, sizeof(oper));
+	result = TEEC_InitializeContext(NULL, &ctx);
+	if (result != TEEC_SUCCESS)
+		return -1;
+	oper.paramTypes = TEEC_PARAM_TYPES(TEEC_VALUE_INPUT, TEEC_NONE,
+					   TEEC_NONE, TEEC_NONE);
+	/* 1 selects RPMB, 0 selects the 'security' partition */
+	oper.params[0].value.a = 1;
+	result = TEEC_OpenSession(&ctx, &sess, &rktemp_uuid,
+				  TEEC_LOGIN_PUBLIC, NULL, &oper, &origin);
+	if (result != TEEC_SUCCESS)
+		fprintf(stderr, "Error initializing secure storage: 0x%x (origin 0x%x)\n",
+			result, origin);
+	TEEC_CloseSession(&sess);
+	TEEC_FinalizeContext(&ctx);
+	return (result == TEEC_SUCCESS) ? 0 : -1;
+}
+/*
  * run_keystore_cmd
  *
  * Returns special NO_PASSPHRASE value when there is no passphrase
@@ -100,6 +136,8 @@ run_keystore_cmd (keystore_cmd_t cmd, uint32_t idx, uint32_t flags, char *buf, s
 	TEEC_UUID keystore_uuid = KEYSTORE_TA_UUID;
 	uint32_t origin;
 	ssize_t retval;
+
+	initialize_secure_storage();
 
 	memset(&oper, 0, sizeof(oper));
 	switch (cmd) {
