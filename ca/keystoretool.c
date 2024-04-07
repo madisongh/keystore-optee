@@ -41,16 +41,18 @@ static struct option options[] = {
 	{ "get-passphrase",	no_argument,		0, 'p' },
 	{ "bootdone",		no_argument,		0, 'b' },
 	{ "generate",		no_argument,		0, 'g' },
+	{ "no-retry",           no_argument,            0, 'n' },
 	{ "output",             required_argument,	0, 'o' },
 	{ "help",		no_argument,		0, 'h' },
 	{ 0,			0,			0, 0   }
 };
-static const char *shortopts = ":pbgo:h";
+static const char *shortopts = ":pbgno:h";
 
 static char *optarghelp[] = {
 	"--get-passphrase     ",
 	"--bootdone           ",
 	"--generate           ",
+	"--no-retry           ",
 	"--output             ",
 	"--help               ",
 };
@@ -59,6 +61,7 @@ static char *opthelp[] = {
 	"extract the dmcrypt passphrase",
 	"set booting complete",
 	"force generation of new passphrase",
+	"no retries on initial failure, just return error",
 	"file to write the passphrase to instead of stdout",
 	"display this help text"
 };
@@ -204,7 +207,7 @@ run_keystore_cmd (keystore_cmd_t cmd, uint32_t idx, uint32_t flags, char *buf, s
  *
  */
 static int
-new_passphrase (FILE *outf, bool force)
+new_passphrase (FILE *outf, bool force, bool skip_retries)
 {
 	char buf[32], readback[32];
 	ssize_t n;
@@ -225,7 +228,12 @@ new_passphrase (FILE *outf, bool force)
 	n = run_keystore_cmd(KEYSTORE_CMD_STORE, KEYSTORE_ID_DMCPP, flags,
 			     buf, sizeof(buf));
 	if (n < 0) {
-		fprintf(stderr, "TA returned error storing passphrase, trying again\n");
+		fprintf(stderr, "TA returned error storing passphrase");
+		if (skip_retries) {
+			fprintf(stderr, "\n");
+			return 1;
+		}
+		fprintf(stderr, ", trying again\n");
 		n = run_keystore_cmd(KEYSTORE_CMD_STORE, KEYSTORE_ID_DMCPP, flags,
 				     buf, sizeof(buf));
 		if (n < 0) {
@@ -258,17 +266,17 @@ new_passphrase (FILE *outf, bool force)
  *
  */
 static int
-get_passphrase (FILE *outf, bool generate)
+get_passphrase (FILE *outf, bool generate, bool skip_retries)
 {
 	char buf[256];
 	ssize_t n = -1;
 
 	if (generate)
-		return new_passphrase(outf, true);
+		return new_passphrase(outf, true, skip_retries);
 	n = run_keystore_cmd(KEYSTORE_CMD_RETRIEVE, KEYSTORE_ID_DMCPP, 0,
 			     buf, sizeof(buf));
 	if (n == NO_PASSPHRASE)
-		return new_passphrase(outf, false);
+		return new_passphrase(outf, false, skip_retries);
 	if (n < 0)
 		return 1;
 
@@ -304,6 +312,7 @@ main (int argc, char * const argv[])
 	char *outfile = NULL;
 	FILE *outf = stdout;
 	bool force_generate = false;
+	bool skip_retries = false;
 	enum { CMD_NONE, CMD_GET, CMD_BOOTDONE } cmd = CMD_NONE;
 
 	if (argc < 2) {
@@ -326,6 +335,9 @@ main (int argc, char * const argv[])
 				break;
 			case 'g':
 				force_generate = true;
+				break;
+			case 'n':
+				skip_retries = true;
 				break;
 			case 'o':
 				outfile = strdup(optarg);
@@ -365,7 +377,7 @@ main (int argc, char * const argv[])
 	}
 	switch (cmd) {
 		case CMD_GET:
-			ret = get_passphrase(outf, force_generate);
+			ret = get_passphrase(outf, force_generate, skip_retries);
 			break;
 		case CMD_BOOTDONE:
 			ret = set_bootdone();
