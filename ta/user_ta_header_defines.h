@@ -11,6 +11,6 @@
 
 #define TA_CURRENT_TA_EXT_PROPERTIES \
   { "gp.ta.description", USER_TA_PROP_TYPE_STRING, "Secure storage for keys/passphrases" }, \
-  { "gp.ta.version", USER_TA_PROP_TYPE_U32, &(const uint32_t) { 0x0010 } }
+  { "gp.ta.version", USER_TA_PROP_TYPE_U32, &(const uint32_t) { 0x0011 } }
 
 #endif /* user_ta_header_defines__h */

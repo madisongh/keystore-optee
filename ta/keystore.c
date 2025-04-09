@@ -5,7 +5,7 @@
  * Stores or etrieves a passphrase for use with
  * LUKS or other device storage encryption method.
  *
- * Copyright (c) 2023, M. Madison
+ * Copyright (c) 2023-2025, M. Madison
  */
 
 #include <inttypes.h>
@@ -107,12 +107,20 @@ store_passphrase (struct session_context *ctx, uint32_t param_types, TEE_Param p
 					   TEE_PARAM_TYPE_MEMREF_INPUT,
 					   TEE_PARAM_TYPE_NONE))
 		return TEE_ERROR_BAD_PARAMETERS;
+
 	if (params[0].value.a > KEYSTORE_MAX_ID) {
 		EMSG("Invalid passphrase ID: %u", params[0].value.a);
 		return TEE_ERROR_BAD_PARAMETERS;
 	}
+
+	if (disabled_ids & (1U << params[0].value.a)) {
+		EMSG("Attempt to store to disabled passphrase ID: %u", params[0].value.a);
+		return TEE_ERROR_ACCESS_DENIED;
+	}
+
 	if (params[2].memref.size > sizeof(ctx->ppbuf))
 		return TEE_ERROR_EXCESS_DATA;
+
 	TEE_MemMove(ctx->ppbuf, params[2].memref.buffer, params[2].memref.size);
 	objnamelen = snprintf(ctx->objname, sizeof(ctx->objname), "keystore.pp.%u", params[0].value.a);
 	if (objnamelen < 0) {

@@ -46,11 +46,15 @@ typedef enum {
 
 
 /*
- * Up to 32 passphrases/keys supported, the first
- * is reserved for use with dm-crypt/LUKS
+ * Up to 32 entries supported.
+ *  0: dm-crypt passphrase
+ *  1: verity root hash for rootfs A
+ *  2: verity root hash for rootfs B
  */
-#define KEYSTORE_ID_DMCPP 0
-#define KEYSTORE_MAX_ID   31
+#define KEYSTORE_ID_DMCPP	0
+#define KEYSTORE_ID_VHASH_A	1
+#define KEYSTORE_ID_VHASH_B	2
+#define KEYSTORE_MAX_ID		31
 
 /*
  * Maximum passphrase/key size, in bytes
