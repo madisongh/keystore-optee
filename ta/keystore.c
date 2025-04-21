@@ -113,7 +113,8 @@ store_passphrase (struct session_context *ctx, uint32_t param_types, TEE_Param p
 		return TEE_ERROR_BAD_PARAMETERS;
 	}
 
-	if (disabled_ids & (1U << params[0].value.a)) {
+	if ((params[1].value.a & KEYSTORE_STORE_OVERWRITE) == 0 &&
+	    (disabled_ids & (1U << params[0].value.a)) != 0) {
 		EMSG("Attempt to store to disabled passphrase ID: %u", params[0].value.a);
 		return TEE_ERROR_ACCESS_DENIED;
 	}
